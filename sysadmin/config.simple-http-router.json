@@ -1,0 +1,44 @@
+{
+	"_comment": "Sketch for simple-http-router pairing with simple-git-server on goframework.io. Recommended split: always-on git server (+ optional go-import) on this service (64180); static docs on simple-http-fileserver (64080).",
+	"listeners": {
+		"all-on-80":  { "addr": ":80", "redirect_to_https": true },
+		"all-on-443": { "addr": ":443", "tls": true }
+	},
+	"routing": {
+		"all-on-80": [
+			{ "host": "goframework.io", "to": "127.0.0.1:64180", "tls": false }
+		],
+		"all-on-443": [
+			{
+				"host": "goframework.io",
+				"path": "/git",
+				"to": "127.0.0.1:64180",
+				"tls": false
+			},
+			{
+				"host": "goframework.io",
+				"path": "/docs",
+				"to": "127.0.0.1:64080",
+				"tls": false,
+				"_note": "optional: static docs via simple-http-fileserver"
+			},
+			{
+				"host": "goframework.io",
+				"path": "/",
+				"to": "127.0.0.1:64180",
+				"tls": false,
+				"_note": "optional go-import for /cliflags etc. (enable --enable-go-import)"
+			}
+		]
+	},
+	"sites-config-defaults": {
+		"cert": {
+			"renew": true,
+			"renew_account": {
+				"email": "admin@goframework.io",
+				"cache_dir": "cert-cache",
+				"use_staging": false
+			}
+		}
+	}
+}

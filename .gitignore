@@ -1,0 +1,6 @@
+.gobuild*
+
+# built binaries
+/simple-git-server
+/simple-git-server-http-push
+/simple-git-server-ssh-push

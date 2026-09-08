@@ -1,0 +1,17 @@
+[Unit]
+Description=simple-git-server
+Documentation=https://github.com/codemodify/simple-git-server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/git
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env simple-git-server --domain goframework.io --repos /home/git --httpOn "127.0.0.1:64180" --enableVanity --enableGitHTTP --gitPathPrefix /git/
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
