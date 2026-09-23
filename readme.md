@@ -17,7 +17,8 @@
 ```sh
 # example: git server + read/write over HTTP
 export GIT_REPOS_FOLDER=/home/git/repos
-mkdir -p $GIT_REPOS_FOLDER
+sudo mkdir -p $GIT_REPOS_FOLDER
+sudo chown $(id -un) $GIT_REPOS_FOLDER   # the repos belong to whoever runs the server
 
 git init --bare $GIT_REPOS_FOLDER/repo1.git
 git init --bare $GIT_REPOS_FOLDER/repo2.git
@@ -38,9 +39,9 @@ git clone http://127.0.0.1:64180/repo1.git
 # - simple-git-server serves HTTP only, it takes no part in the SSH path
 #	- sshd logs clients into the git account, git-shell runs the git commands
 export GIT_REPOS_FOLDER=/home/git/repos
-mkdir -p $GIT_REPOS_FOLDER
 
 # the git account is what sshd authenticates into, git-shell keeps it to git only
+# useradd creates the folder with the right owner, so do not pre-create it
 sudo useradd --create-home --home-dir $GIT_REPOS_FOLDER --shell /usr/bin/git-shell git
 
 sudo -u git git init --bare $GIT_REPOS_FOLDER/repo1.git
@@ -53,7 +54,8 @@ sudo -u git chmod 700 $GIT_REPOS_FOLDER/.ssh
 sudo -u git chmod 600 $GIT_REPOS_FOLDER/.ssh/authorized_keys
 cat ~/.ssh/id_ed25519.pub | sudo -u git tee -a $GIT_REPOS_FOLDER/.ssh/authorized_keys
 
-simple-git-server \
+# git refuses to serve repos owned by somebody else, so run as the git user
+sudo -u git simple-git-server \
   --git-repos-folder $GIT_REPOS_FOLDER \
   --enable-http-read \
   --http-on 127.0.0.1:64180
@@ -68,23 +70,26 @@ git clone git@127.0.0.1:repo2.git
 # - needs simple-git-server-ssh-read-write on PATH, no binary no SSH
 # - we are the ssh server here, so we need our own host key + authorized_keys
 export GIT_REPOS_FOLDER=/home/git/repos
-mkdir -p $GIT_REPOS_FOLDER
-
-export GIT_KEYS_FOLDER=/home/git/.ssh/
-mkdir -p $GIT_KEYS_FOLDER
+export GIT_KEYS_FOLDER=/home/git/keys
 
 # the account only owns the files; nothing logs in as it, so no shell
+# useradd creates the repos folder with the right owner, so do not pre-create it
 sudo useradd --create-home --home-dir $GIT_REPOS_FOLDER --shell /usr/sbin/nologin git
 
 sudo -u git git init --bare $GIT_REPOS_FOLDER/repo1.git
 sudo -u git git init --bare $GIT_REPOS_FOLDER/repo2.git
 
+sudo mkdir -p $GIT_KEYS_FOLDER
 sudo ssh-keygen -t ed25519 -f $GIT_KEYS_FOLDER/host_key -N ""
 sudo touch $GIT_KEYS_FOLDER/authorized_keys
 sudo chmod 600 $GIT_KEYS_FOLDER/host_key $GIT_KEYS_FOLDER/authorized_keys
 sudo chown -R git:git $GIT_KEYS_FOLDER
 
-simple-git-server \
+# without this the server has nobody to authenticate, every ssh clone is refused
+cat ~/.ssh/id_ed25519.pub | sudo -u git tee -a $GIT_KEYS_FOLDER/authorized_keys
+
+# the server owns nothing as you: repos and keys belong to git, so run as git
+sudo -u git simple-git-server \
   --git-repos-folder $GIT_REPOS_FOLDER \
   --enable-http-read \
   --http-on 127.0.0.1:64180 \
@@ -106,13 +111,15 @@ docker build -t simple-git-server https://github.com/codemodify/simple-git-serve
 ```sh
 # example: git server + read/write over HTTP
 export GIT_REPOS_FOLDER=/home/git/repos
-mkdir -p $GIT_REPOS_FOLDER
+sudo mkdir -p $GIT_REPOS_FOLDER
+sudo chown $(id -un) $GIT_REPOS_FOLDER
 
 git init --bare $GIT_REPOS_FOLDER/repo1.git
 git init --bare $GIT_REPOS_FOLDER/repo2.git
 
 # Dockerfile runs under `nobody` uid/gid `65534`
 # Dockerfile `nobody` does not map to OS `nobody` but `65534` does (go figure)
+# git refuses to serve repos owned by somebody else, so hand them over last
 sudo chown -R 65534:65534 $GIT_REPOS_FOLDER
 
 docker run \
@@ -133,10 +140,9 @@ git clone http://127.0.0.1:64180/repo1.git
 # - the helper ships inside the image, nothing extra to install
 # - we are the ssh server here, so we need our own host key + authorized_keys
 export GIT_REPOS_FOLDER=/home/git/repos
-mkdir -p $GIT_REPOS_FOLDER
-
-export GIT_KEYS_FOLDER=/home/git/.ssh/
-mkdir -p $GIT_KEYS_FOLDER
+export GIT_KEYS_FOLDER=/home/git/keys
+sudo mkdir -p $GIT_REPOS_FOLDER $GIT_KEYS_FOLDER
+sudo chown $(id -un) $GIT_REPOS_FOLDER $GIT_KEYS_FOLDER
 
 git init --bare $GIT_REPOS_FOLDER/repo1.git
 git init --bare $GIT_REPOS_FOLDER/repo2.git
@@ -145,7 +151,11 @@ ssh-keygen -t ed25519 -f $GIT_KEYS_FOLDER/host_key -N ""
 touch $GIT_KEYS_FOLDER/authorized_keys
 chmod 600 $GIT_KEYS_FOLDER/host_key $GIT_KEYS_FOLDER/authorized_keys
 
+# without this the server has nobody to authenticate, every ssh clone is refused
+cat ~/.ssh/id_ed25519.pub >> $GIT_KEYS_FOLDER/authorized_keys
+
 # Dockerfile runs under `nobody` uid/gid `65534`
+# git refuses to serve repos owned by somebody else, so hand them over last
 sudo chown -R 65534:65534 $GIT_REPOS_FOLDER $GIT_KEYS_FOLDER
 
 docker run \
