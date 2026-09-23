@@ -16,6 +16,7 @@
 ### setup + run (binary)
 ```sh
 # example: git server + read/write over HTTP
+# - needs simple-git-server-http-write on PATH, no binary no push
 export GIT_REPOS_FOLDER=/home/git/repos
 sudo mkdir -p $GIT_REPOS_FOLDER
 sudo chown $(id -un) $GIT_REPOS_FOLDER   # the repos belong to whoever runs the server

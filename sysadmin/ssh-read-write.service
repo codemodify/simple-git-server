@@ -1,23 +1,32 @@
 [Unit]
-Description=simple-git-server-ssh-read-write (SSH git receive-pack / upload-pack)
+Description=simple-git-server-ssh-read-write (SSH git upload-pack / receive-pack)
 Documentation=https://github.com/codemodify/simple-git-server
-# Access: this unit = SSH write (+ optional fetch) for authorized keys.
-# Pair with simple-git-server.service on the same --git-repos-folder for public HTTPS read-only.
-# Ops guide: ../readme.md ("push over ssh")
+# This runs the SSH server on its own, as a standalone unit.
+#
+# It is an ALTERNATIVE to option B in ../readme.md, where simple-git-server
+# starts and supervises the same binary for you. Pick one:
+#   - option B  : simple-git-server --enable-ssh-read ... (no need for this unit)
+#   - this unit : run the SSH server separately, e.g. to give it its own
+#                 restart policy, or to serve SSH on a host that does no HTTP
+#
+# Pair it with simple-git-server.service on the same --git-repos-folder to get
+# HTTP read alongside SSH read/write.
 After=network.target
 
 [Service]
 Type=simple
 # Run as the dedicated git account from ../readme.md, never root.
-# The host key and authorized_keys under /etc/ssh-read-write must be readable by it.
+# It must own --git-repos-folder and be able to read the host key and
+# authorized_keys, or every connection fails.
 User=git
 Group=git
-WorkingDirectory=/home/git
+WorkingDirectory=/home/git/repos
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 # Default bind is localhost — put a firewall / proxy in front for public SSH, or change --ssh-on.
 # --enable-ssh-read = clone/fetch (upload-pack); --enable-ssh-write = push (receive-pack).
 # Push is off by default, so this unit opts in explicitly.
-ExecStart=/usr/bin/env simple-git-server-ssh-read-write --git-repos-folder /home/git --ssh-on "127.0.0.1:64222" --ssh-host-key /etc/ssh-read-write/host_key --ssh-authorized-keys /etc/ssh-read-write/authorized_keys --enable-ssh-read=true --enable-ssh-write=true
+ExecStart=/usr/bin/env simple-git-server-ssh-read-write --git-repos-folder /home/git/repos --ssh-on "127.0.0.1:64222" --ssh-host-key /home/git/keys/host_key --ssh-authorized-keys /home/git/keys/authorized_keys --enable-ssh-read=true --enable-ssh-write=true
+# SIGHUP reloads authorized_keys without dropping live connections.
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10

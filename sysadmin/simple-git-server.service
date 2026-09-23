@@ -6,11 +6,18 @@ After=network.target
 [Service]
 Type=simple
 # Run as the dedicated git account from ../readme.md, never root.
+# git refuses to serve repos owned by somebody else, so this must be the
+# account that owns --git-repos-folder.
 User=git
 Group=git
-WorkingDirectory=/home/git
+WorkingDirectory=/home/git/repos
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/env simple-git-server --git-repos-folder /home/git --enable-http-read --http-on "127.0.0.1:64180" --enable-go-import --go-import-domain goframework.io
+# Matches option A in ../readme.md: HTTP read only, SSH is the system sshd's job.
+# For option B (built-in SSH) add, and keep simple-git-server-ssh-read-write on PATH:
+#   --enable-ssh-read --enable-ssh-write --ssh-on "127.0.0.1:64222"
+#   --ssh-host-key /home/git/keys/host_key --ssh-authorized-keys /home/git/keys/authorized_keys
+# For go-import add: --enable-go-import --go-import-domain your.domain
+ExecStart=/usr/bin/env simple-git-server --git-repos-folder /home/git/repos --enable-http-read --http-on "127.0.0.1:64180"
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
