@@ -2,5 +2,5 @@
 
 # built binaries
 /simple-git-server
-/simple-git-server-http-push
-/simple-git-server-ssh-push
+/simple-git-server-http-write
+/simple-git-server-ssh-read-write

@@ -11,7 +11,7 @@ import (
 
 var version = "dev"
 
-const banner = "codemodify/simple-git-server-http-push"
+const banner = "codemodify/simple-git-server-http-write"
 
 func init() {
 	log.SetFlags(0)
@@ -34,14 +34,17 @@ func main() {
 	}
 }
 
-// runGitHTTPBackend execs git http-backend with receive-pack enabled.
+// runGitHTTPBackend execs git http-backend with receive-pack enabled and the
+// dumb file-serving protocol disabled.
 // CGI environment is inherited from the parent (GIT_PROJECT_ROOT, PATH_INFO, …).
 func runGitHTTPBackend() error {
 	if _, err := exec.LookPath("git"); err != nil {
 		return fmt.Errorf("git binary not found on PATH: %w", err)
 	}
 
-	cmd := exec.Command("git", "-c", "http.receivepack=true", "http-backend")
+	// http.getanyfile=false keeps the dumb protocol off here too, matching the
+	// parent's read path: it would otherwise serve unreachable objects by SHA.
+	cmd := exec.Command("git", "-c", "http.receivepack=true", "-c", "http.getanyfile=false", "http-backend")
 	cmd.Env = os.Environ()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

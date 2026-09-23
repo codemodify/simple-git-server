@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -37,9 +39,32 @@ func goImportMeta(cfg *serverConfig, project string) string {
 	return fmt.Sprintf("%s git %s", importPath, repoURL)
 }
 
+// validProjectName keeps a URL segment from reaching the filesystem check as
+// anything other than a plain name.
+func validProjectName(p string) bool {
+	if p == "" || strings.HasPrefix(p, ".") {
+		return false
+	}
+	return !strings.ContainsAny(p, `/\`) && p == filepath.Base(p)
+}
+
+// repoExists reports whether {gitReposFolder}/{project}.git is a directory.
+// Without this check the go-import handler is a catch-all: it answers every
+// unmatched path with a meta tag for a repository that may not exist, the
+// server can never return 404, and `go get` on a typo appears to succeed.
+func repoExists(cfg *serverConfig, project string) bool {
+	info, err := os.Stat(filepath.Join(cfg.gitReposFolder, project+".git"))
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	// os.Stat follows symlinks, so without this a symlink under the root would
+	// let go-import confirm the existence of a directory outside it.
+	return repoWithinRoot(cfg.gitReposFolder, "/"+project+".git") == nil
+}
+
 func serveGoImport(w http.ResponseWriter, r *http.Request, cfg *serverConfig) {
 	project := projectFromPath(r.URL.Path)
-	if project == "" {
+	if !validProjectName(project) || !repoExists(cfg, project) {
 		http.NotFound(w, r)
 		return
 	}

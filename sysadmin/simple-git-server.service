@@ -5,9 +5,12 @@ After=network.target
 
 [Service]
 Type=simple
+# Run as the dedicated git account from ../readme.md, never root.
+User=git
+Group=git
 WorkingDirectory=/home/git
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/env simple-git-server --domain goframework.io --repos /home/git --httpOn "127.0.0.1:64180" --enableVanity --enableGitHTTP --gitPathPrefix /git/
+ExecStart=/usr/bin/env simple-git-server --git-repos-folder /home/git --enable-http-read --http-on "127.0.0.1:64180" --enable-go-import --go-import-domain goframework.io
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

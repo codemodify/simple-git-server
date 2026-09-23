@@ -9,64 +9,67 @@ import (
 	"time"
 )
 
-// simple-git-server-ssh-push is a long-lived SSH listener (receive-pack / upload-pack).
+// simple-git-server-ssh-read-write is a long-lived SSH listener (receive-pack / upload-pack).
 // Unlike git http-backend, it is NOT spawned per request: when --enable-ssh-read
 // is set, simple-git-server starts one child and keeps it running until shutdown.
 
 const (
-	defaultSSHOn         = "127.0.0.1:64222"
-	defaultSSHPushBinary = "simple-git-server-ssh-push"
-	sshChildStopTimeout  = 5 * time.Second
+	defaultSSHOn              = "127.0.0.1:64222"
+	defaultSSHReadWriteBinary = "simple-git-server-ssh-read-write"
+	sshChildStopTimeout       = 5 * time.Second
 )
 
-type sshPushOptions struct {
-	enable           bool
-	sshOn            string
-	hostKey          string
-	authorizedKeys   string
-	sshPushBinary    string
-	enableSSHWrite bool
+type sshReadWriteOptions struct {
+	enable             bool
+	sshOn              string
+	hostKey            string
+	authorizedKeys     string
+	sshReadWriteBinary string
+	enableSSHWrite     bool
 }
 
-func defaultSSHPushOptions() sshPushOptions {
-	return sshPushOptions{
-		enable:           false,
-		sshOn:            defaultSSHOn,
-		sshPushBinary:    defaultSSHPushBinary,
-		enableSSHWrite: true,
+func defaultSSHReadWriteOptions() sshReadWriteOptions {
+	return sshReadWriteOptions{
+		enable:             false,
+		sshOn:              defaultSSHOn,
+		sshReadWriteBinary: defaultSSHReadWriteBinary,
+		enableSSHWrite:     false,
 	}
 }
 
-// sshPushArgs builds argv for the supervised simple-git-server-ssh-push child.
-func sshPushArgs(cfg *serverConfig) []string {
+// sshReadWriteArgs builds argv for the supervised simple-git-server-ssh-read-write child.
+func sshReadWriteArgs(cfg *serverConfig) []string {
 	return []string{
 		"--git-repos-folder", cfg.gitReposFolder,
 		"--ssh-on", cfg.sshOn,
 		"--ssh-host-key", cfg.sshHostKey,
 		"--ssh-authorized-keys", cfg.sshAuthorizedKeys,
+		"--enable-ssh-read=" + strconv.FormatBool(cfg.enableSSHRead),
 		"--enable-ssh-write=" + strconv.FormatBool(cfg.enableSSHWrite),
+		"--git-max-concurrent=" + strconv.Itoa(cfg.gitMaxConcurrent),
+		"--git-idle-timeout=" + cfg.gitIdleTimeout.String(),
 	}
 }
 
-func resolveSSHPushBinary(name string) (string, error) {
+func resolveSSHReadWriteBinary(name string) (string, error) {
 	if name == "" {
-		name = defaultSSHPushBinary
+		name = defaultSSHReadWriteBinary
 	}
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("simple-git-server-ssh-push binary %q not found: %w", name, err)
+		return "", fmt.Errorf("simple-git-server-ssh-read-write binary %q not found: %w", name, err)
 	}
 	return path, nil
 }
 
-// sshChild is a supervised long-lived simple-git-server-ssh-push process.
+// sshChild is a supervised long-lived simple-git-server-ssh-read-write process.
 type sshChild struct {
 	cmd  *exec.Cmd
 	done chan error
 }
 
-func startSSHPush(cfg *serverConfig, binary string) (*sshChild, error) {
-	cmd := exec.Command(binary, sshPushArgs(cfg)...)
+func startSSHReadWrite(cfg *serverConfig, binary string) (*sshChild, error) {
+	cmd := exec.Command(binary, sshReadWriteArgs(cfg)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	// Own process group so parent SIGINT/SIGTERM is not double-delivered oddly,
