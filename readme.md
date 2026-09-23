@@ -218,3 +218,6 @@ git clone ssh://127.0.0.1:64222/repo2.git
 | `--git-idle-timeout`				| `60s`										| kill a request that stops making progress; `0` disables
 | `--git-max-request-body`			| `104857600`								| max request body in bytes — also caps the pack on a push
 
+
+### license
+[The Free License](LICENSE)
